@@ -1,7 +1,6 @@
-import React from 'react';
-import { useEffect, useState } from "react";
-import mockData from "./mockdata.json";
+import React, { useState, useRef, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import mockData from "./mockdata.json";
 import VitalsDashboard from "./components/VitalsDashboard";
 
 
@@ -44,6 +43,7 @@ import VitalsDashboard from "./components/VitalsDashboard";
 
 
 function App() {
+  // Data fetching state from remote
   const [sensorData, setSensorData] = useState([]);
   const [aiSummary, setAiSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,7 +51,92 @@ function App() {
   const [oxygenData, setOxygenData] = useState([]);
   const [temperatureData, setTemperatureData] = useState([]);
   
-  // Fetch data from FastAPI backend
+  // UI state from our changes
+  const [showModal, setShowModal] = useState(false);
+  const [tourStep, setTourStep] = useState(null); // null, 0, 1, or 2
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
+  const [favoritedStars, setFavoritedStars] = useState({
+    heartRate: false,
+    oxygenLevel: false,
+    temperature: false
+  });
+  const healthMetricsRef = useRef(null);
+  const healthInsightsRef = useRef(null);
+  const wellnessSummaryRef = useRef(null);
+  const videoRef = useRef(null);
+
+  const toggleStar = (cardName) => {
+    setFavoritedStars(prev => ({
+      ...prev,
+      [cardName]: !prev[cardName]
+    }));
+  };
+
+  const tourContent = [
+    {
+      title: "Health Metrics",
+      description: "Real-time graphs pull live data directly from AWS DynamoDB, giving you an up-to-the-minute view of your loved one's well-being. Every key metric is continuously refreshed, so you always have the most current picture of their health at a glance.",
+      ref: healthMetricsRef
+    },
+    {
+      title: "Health Insights",
+      description: "Powered by NVIDIA NIM and Llama-3 reasoning, our system goes beyond raw numbers. It interprets trends, identifies meaningful patterns, and delivers clear, personalized insights — transforming data into guidance you can trust for better care decisions.",
+      ref: healthInsightsRef
+    },
+    {
+      title: "Wellness Summary",
+      description: "Daily wellness summaries turn complex information into simple, human-friendly updates — helping you understand how your loved one is doing and offering gentle cues on how to support them with care and confidence.",
+      ref: wellnessSummaryRef
+    }
+  ];
+
+  const startTour = () => {
+    setTourStep(0);
+  };
+
+  const nextStep = () => {
+    if (tourStep < tourContent.length - 1) {
+      setTourStep(tourStep + 1);
+    } else {
+      endTour();
+    }
+  };
+
+  const prevStep = () => {
+    if (tourStep > 0) {
+      setTourStep(tourStep - 1);
+    }
+  };
+
+  const endTour = () => {
+    setTourStep(null);
+  };
+
+  // Handle video end - hide loading screen after one play
+  const handleVideoEnd = () => {
+    setShowLoadingScreen(false);
+  };
+
+  // Scroll to section when tour step changes
+  useEffect(() => {
+    if (tourStep !== null) {
+      const currentStep = tourContent[tourStep];
+      if (currentStep?.ref?.current) {
+        // Small delay to ensure smooth animation
+        setTimeout(() => {
+          const offset = 100; // Offset for sticky header
+          const elementPosition = currentStep.ref.current.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        }, 100);
+      }
+    }
+  }, [tourStep]);
+
   // Fetch data from FastAPI backend
   useEffect(() => {
     const fetchAndAnalyze = async () => {
@@ -119,13 +204,48 @@ function App() {
     const interval = setInterval(fetchAndAnalyze, 30000);
     return () => clearInterval(interval);
   
-  }, []); // <— Don’t forget dependency array
-  
-  
+  }, []); // <— Don't forget dependency array
+
   return (
     <div className="min-h-screen bg-transparent">
-    
+      {/* Loading Screen */}
+      {showLoadingScreen && (
+        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center">
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            playsInline
+            onEnded={handleVideoEnd}
+          >
+            <source src="/loadingscreen.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      )}
 
+      {/* Main Content - only show after loading */}
+      {!showLoadingScreen && (
+        <>
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-50">
+        <div className="w-full py-6 flex items-center justify-between">
+          <div className="flex items-center space-x-3 ml-6">
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="h-10 w-auto"
+            />
+            <h1 className="text-3xl font-bold text-gray-800">nomi</h1>
+          </div>
+          <img 
+            src="/edna.png" 
+            alt="Profile" 
+            className="h-12 w-12 rounded-full object-cover border-2 border-gray-200 mr-8"
+          />
+        </div>
+      </header>
 
       {/* Hero Section */}
       <section className="px-6 py-8">
@@ -138,10 +258,16 @@ function App() {
             <h2 className="text-4xl font-bold mb-4">Meet Nomi — The sensor network that truly understands wellness</h2>
             <p className="text-xl mb-6 opacity-90">Monitor Edna's health with comprehensive wellness tracking and insights.</p>
             <div className="flex space-x-4">
-              <button className="px-6 py-3 bg-white text-[#3B6E0E] rounded-lg font-medium hover:bg-gray-100">
+              <button 
+                onClick={() => setShowModal(true)}
+                className="px-6 py-3 bg-white text-[#3B6E0E] rounded-lg font-medium hover:bg-gray-100 transition-colors"
+              >
                 View Reports
               </button>
-              <button className="px-6 py-3 bg-[#3B6E0E] text-white rounded-lg font-medium hover:bg-[#2f590b]">
+              <button 
+                onClick={startTour}
+                className="px-6 py-3 bg-[#3B6E0E] text-white rounded-lg font-medium hover:bg-[#2f590b] transition-colors"
+              >
                 Take a Tour
               </button>
             </div>
@@ -158,10 +284,9 @@ function App() {
       <main className="px-6 pb-8">
         
         {/* Recent Health Metrics Section */}
-        <div className="mb-8">
+        <div ref={healthMetricsRef} className="mb-8 scroll-mt-24">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-2xl font-bold text-black">Health Metrics</h3>
-            <button className="text-blue-600 hover:text-blue-800 font-medium">View All</button>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -180,11 +305,14 @@ function App() {
                     <p className="text-gray-600 text-sm">Real-time monitoring</p>
                   </div>
                 </div>
-                <div className="w-6 h-6 text-gray-400">
-                  <svg fill="currentColor" viewBox="0 0 20 20">
+                <button 
+                  onClick={() => toggleStar('heartRate')}
+                  className="w-6 h-6 focus:outline-none cursor-pointer transition-colors"
+                >
+                  <svg fill="currentColor" viewBox="0 0 20 20" className={favoritedStars.heartRate ? "text-yellow-400" : "text-gray-400"}>
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
-                </div>
+                </button>
               </div>
               <div className="h-48 mb-4">
                 <ResponsiveContainer width="100%" height="100%">
@@ -232,11 +360,14 @@ function App() {
                     <p className="text-gray-600 text-sm">Blood oxygen saturation</p>
                   </div>
                 </div>
-                <div className="w-6 h-6 text-gray-400">
-                  <svg fill="currentColor" viewBox="0 0 20 20">
+                <button 
+                  onClick={() => toggleStar('oxygenLevel')}
+                  className="w-6 h-6 focus:outline-none cursor-pointer transition-colors"
+                >
+                  <svg fill="currentColor" viewBox="0 0 20 20" className={favoritedStars.oxygenLevel ? "text-yellow-400" : "text-gray-400"}>
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
-                </div>
+                </button>
               </div>
               <div className="h-48 mb-4">
                 <ResponsiveContainer width="100%" height="100%">
@@ -284,11 +415,14 @@ function App() {
                     <p className="text-gray-600 text-sm">Body temperature</p>
                   </div>
                 </div>
-                <div className="w-6 h-6 text-gray-400">
-                  <svg fill="currentColor" viewBox="0 0 20 20">
+                <button 
+                  onClick={() => toggleStar('temperature')}
+                  className="w-6 h-6 focus:outline-none cursor-pointer transition-colors"
+                >
+                  <svg fill="currentColor" viewBox="0 0 20 20" className={favoritedStars.temperature ? "text-yellow-400" : "text-gray-400"}>
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
-                </div>
+                </button>
               </div>
               <div className="h-48 mb-4">
                 <ResponsiveContainer width="100%" height="100%">
@@ -326,7 +460,7 @@ function App() {
         </div>
 
         {/* Health Insights Section */}
-        <div className="mb-8">
+        <div ref={healthInsightsRef} className="mb-8 scroll-mt-24">
           <h3 className="text-2xl font-bold text-black mb-6">Health Insights</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
@@ -348,7 +482,7 @@ function App() {
           </div>
         </div>
         {/* Wellness Summary Section */}
-        <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+        <div ref={wellnessSummaryRef} className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 scroll-mt-24">
           <h3 className="text-2xl font-bold text-black mb-6">Wellness Summary</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
@@ -384,6 +518,124 @@ function App() {
           </div>
         </div>
       </main>
+
+      {/* Modal */}
+      {showModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn"
+          onClick={() => setShowModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all animate-slideUp relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Alert Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Message */}
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Emergency Alert</h3>
+              <p className="text-gray-700 text-lg leading-relaxed mb-6">
+                Edna's heart rate dropped at 11:35 AM. Emergency email and text-message sent to Deborah's IPhone via AWS.
+              </p>
+              
+              {/* Action Button */}
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-6 py-3 bg-[#3B6E0E] text-white rounded-lg font-medium hover:bg-[#2f590b] transition-colors w-full"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tour Overlay */}
+      {tourStep !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 animate-fadeIn">
+          {/* Highlight overlay with cutout for section */}
+          <div className="relative w-full h-full">
+            {/* Tour Card */}
+            <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-2xl px-4 animate-slideUp z-50">
+              <div className="bg-white rounded-2xl shadow-2xl p-8 relative">
+                {/* Step indicator */}
+                <div className="flex justify-center mb-6 space-x-2">
+                  {tourContent.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`h-2 rounded-full transition-all ${
+                        index === tourStep
+                          ? 'bg-[#3B6E0E] w-8'
+                          : index < tourStep
+                          ? 'bg-green-400 w-2'
+                          : 'bg-gray-300 w-2'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                {/* Content */}
+                <div className="text-center mb-6">
+                  <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                    {tourContent[tourStep].title}
+                  </h3>
+                  <p className="text-gray-700 text-lg leading-relaxed">
+                    {tourContent[tourStep].description}
+                  </p>
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex justify-between items-center">
+                  <button
+                    onClick={prevStep}
+                    disabled={tourStep === 0}
+                    className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                      tourStep === 0
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Previous
+                  </button>
+
+                  <button
+                    onClick={endTour}
+                    className="px-6 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                  >
+                    Skip Tour
+                  </button>
+
+                  <button
+                    onClick={nextStep}
+                    className="px-6 py-3 bg-[#3B6E0E] text-white rounded-lg font-medium hover:bg-[#2f590b] transition-colors"
+                  >
+                    {tourStep === tourContent.length - 1 ? 'Finish' : 'Next'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+        </>
+      )}
     </div>
   );
 }
