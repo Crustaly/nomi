@@ -19,7 +19,7 @@ NGC_API_KEY = os.getenv("NGC_API_KEY")
 NIM_ENDPOINT = os.getenv("NIM_ENDPOINT")
 
 # 🔹 Your DynamoDB API Gateway endpoint
-DYNAMO_API_URL = "https://96jal8jxw4.execute-api.us-east-1.amazonaws.com/default/dynamoread"
+DYNAMO_API_URL = "https://hyntpqmh6h.execute-api.us-east-1.amazonaws.com/default/nomi-dynamodb"
 
 
 
@@ -158,7 +158,7 @@ import requests
 def get_sensor_data():
     """Fetch raw sensor data directly from your DynamoDB API Gateway endpoint."""
     try:
-        response = requests.get("https://96jal8jxw4.execute-api.us-east-1.amazonaws.com/default/dynamoread")
+        response = requests.get("https://hyntpqmh6h.execute-api.us-east-1.amazonaws.com/default/nomi-dynamodb")
         response.raise_for_status()
         data = response.json()
         return data

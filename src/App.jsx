@@ -3,45 +3,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import mockData from "./mockdata.json";
 import VitalsDashboard from "./components/VitalsDashboard";
 
-
-
-// hardcoded data for front end designing purposes
-// const heartRateData = [
-//   { time: '6:00 AM', value: 72 },
-//   { time: '8:00 AM', value: 75 },
-//   { time: '10:00 AM', value: 78 },
-//   { time: '12:00 PM', value: 82 },
-//   { time: '2:00 PM', value: 80 },
-//   { time: '4:00 PM', value: 76 },
-//   { time: '6:00 PM', value: 74 },
-//   { time: '8:00 PM', value: 70 },
-// ];
-
-// const oxygenData = [
-//   { time: '6:00 AM', value: 98 },
-//   { time: '8:00 AM', value: 97 },
-//   { time: '10:00 AM', value: 99 },
-//   { time: '12:00 PM', value: 98 },
-//   { time: '2:00 PM', value: 97 },
-//   { time: '4:00 PM', value: 98 },
-//   { time: '6:00 PM', value: 99 },
-//   { time: '8:00 PM', value: 98 },
-// ];
-
-// const temperatureData = [
-//   { time: '6:00 AM', value: 98.2 },
-//   { time: '8:00 AM', value: 98.4 },
-//   { time: '10:00 AM', value: 98.6 },
-//   { time: '12:00 PM', value: 98.3 },
-//   { time: '2:00 PM', value: 98.5 },
-//   { time: '4:00 PM', value: 98.4 },
-//   { time: '6:00 PM', value: 98.2 },
-//   { time: '8:00 PM', value: 98.1 },
-// ];
-
-
-
-
 function App() {
   // Data fetching state from remote
   const [sensorData, setSensorData] = useState([]);
