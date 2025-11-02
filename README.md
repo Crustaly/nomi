@@ -4,7 +4,7 @@ NOMI is an AI-powered companion system for elder care. It combines real-time IoT
 
 ## 🏆 Built For
 
-**NVIDIA × AWS Generative AI Hackathon 2025**
+**Agentic AI Unleashed: AWS & NVIDIA Hackathon**
 
 Category: Agentic AI Systems with Real-World Impact
 
@@ -48,6 +48,12 @@ NOMI acts as an intelligent home health assistant. It ingests sensor data — he
 
 ✅ Optional OpenCV local fall detection (privacy-preserving)
 
+![](docs/homescreen.png)
+![](docs/dashboard2.png)
+
+_Main caregiver dashboard showing live charts for heart rate, oxygen levels, and posture tracking_
+
+
 ## Architecture Diagram
 
 ```
@@ -59,6 +65,11 @@ NOMI acts as an intelligent home health assistant. It ingests sensor data — he
                                                                                                         \
                                                                                                          -> [ React Frontend ] + Alerts (email/SNS)
 ```
+
+![](docs/sensor-backend-diagram.png)
+
+![](docs/backend-frontend-diagram.png)
+_Visual flow from sensors → DynamoDB → Backend → NIM → Frontend_
 
 ## Technology Stack
 
@@ -168,6 +179,10 @@ AWS_ACCESS_KEY_ID=xxxxx
 AWS_SECRET_ACCESS_KEY=xxxxx
 AWS_DEFAULT_REGION=us-east-1
 ```
+
+![](docs/data-pic.png)
+_Populated nomi-data table in console_
+
 
 ### 4) Run FastAPI
 
@@ -327,6 +342,9 @@ Immediate assistance is advised.
 — NOMI Safety System
 ```
 
+![](docs/email-notif-pic.png)
+_Sample fall detection alert email received in caregiver's inbox_
+
 ## Future Enhancements
 
 * MQTT ingest from ESP32 for real-time streaming
@@ -337,10 +355,10 @@ Immediate assistance is advised.
 
 ## Contributors
 
-| Name         | Role                                       |
-| ------------ | ------------------------------------------ |
-| Crystal Yang | Frontend/UI, AWS Integration, DevOps       |
-| Ria Saheta   | System Architecture, AI Reasoning, Backend |
+| Name               | Role                                       |
+| ------------------ | ------------------------------------------ |
+| Ria Saheta         | System Architecture, AI Reasoning, Backend |
+| Crystal [Lastname] | Frontend/UI, AWS Integration, DevOps       |
 
 ## Submission Checklist
 
@@ -356,6 +374,6 @@ Immediate assistance is advised.
 
 ***
 
-**Repo:** `https://github.com/Crustaly/nomi`
+**Repo:** `https://github.com/<your-username>/nomi`
 
 **Demo Video:** add link in `docs/demo_video.mp4`
