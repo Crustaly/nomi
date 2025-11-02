@@ -203,7 +203,7 @@ def analyze(bundle: SensorBundle):
     try:
         # ---- 1️⃣ Get data source ----
         if not bundle.sensor_data:
-            DYNAMO_API_URL = os.getenv("DYNAMO_API_URL", "https://96jal8jxw4.execute-api.us-east-1.amazonaws.com/default/dynamoread")
+            DYNAMO_API_URL = os.getenv("DYNAMO_API_URL", "https://hyntpqmh6h.execute-api.us-east-1.amazonaws.com/default/nomi-dynamodb")
             dynamo_response = requests.get(DYNAMO_API_URL)
             dynamo_response.raise_for_status()
             bundle.sensor_data = dynamo_response.json()
