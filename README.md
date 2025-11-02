@@ -1,272 +1,361 @@
-Nomi: A multi-sensor network system to make sure that elderly are safe, healthy, and promptly assisted.
+# 🧠 NOMI: Agentic AI Elder Care System
 
-# 🧠 NOMI: Agentic AI Elder Care System  
+NOMI is an AI-powered companion system for elder care. It combines real-time IoT sensing, cloud analytics, and NVIDIA-powered reasoning AI to detect events, analyze context, and notify caregivers.
 
-![Dashboard Preview](docs/dashboard.png)
+## 🏆 Built For
 
-**NOMI** is an AI-powered companion system that helps ensure elderly individuals remain safe, healthy, and cared for.  
-It combines **real-time IoT sensing**, **cloud analytics**, and **NVIDIA-powered reasoning AI** to detect events, analyze context, and notify caregivers instantly.
+**NVIDIA × AWS Generative AI Hackathon 2025**
 
----
-
-## 🏆 Built For  
-**NVIDIA × AWS Generative AI Hackathon 2025**  
-> *Category: Agentic AI Systems with Real-World Impact*  
-
----
+Category: Agentic AI Systems with Real-World Impact
 
 ## 🧩 Table of Contents
-1. [Overview](#overview)  
-2. [Core Features](#core-features)  
-3. [Architecture Diagram](#architecture-diagram)  
-4. [Technology Stack](#technology-stack)  
-5. [Project Structure](#project-structure)  
-6. [Backend Setup (FastAPI)](#backend-setup-fastapi)  
-7. [Frontend Setup (React)](#frontend-setup-react)  
-8. [AWS + NIM Integration](#aws--nim-integration)  
-9. [SageMaker Deployment Notes](#sagemaker-deployment-notes)  
-10. [Local Testing](#local-testing)  
-11. [Future Enhancements](#future-enhancements)  
-12. [Contributors](#contributors)
 
----
+* [Overview](#overview)
+* [Core Features](#core-features)
+* [Architecture Diagram](#architecture-diagram)
+* [Technology Stack](#technology-stack)
+* [Project Structure](#project-structure)
+* [Backend Setup (FastAPI)](#backend-setup-fastapi)
+* [Frontend Setup (React)](#frontend-setup-react)
+* [NVIDIA NIM Integration](#nvidia-nim-integration)
+* [SageMaker Deployment Notes](#sagemaker-deployment-notes)
+* [Local Testing](#local-testing)
+* [Example Alert Email](#example-alert-email)
+* [Future Enhancements](#future-enhancements)
+* [Contributors](#contributors)
 
-## 🧭 Overview
+## Overview
 
-NOMI acts as an intelligent home health assistant. It collects sensor data — from heart rate and oxygen levels to motion and posture — and interprets it using NVIDIA’s **Nemotron-based NIM LLM**, surfacing insights and alerts for caregivers.
+NOMI acts as an intelligent home health assistant. It ingests sensor data — heart rate, oxygen, posture (standing/sleeping/fallen), eating/meds events, temperature/humidity — and converts it into clear, caregiver-facing insights using NVIDIA's Nemotron-based NIM.
 
-### 🔍 What It Detects
-- Vital signs (heart rate, oxygen saturation)
-- Temperature and humidity  
-- Posture (standing, sleeping, fallen)  
-- Eating and medication activity  
-- Fall or inactivity incidents  
+### What It Detects
 
----
+* Vital signs (heart rate, oxygen)
+* Temperature & humidity
+* Posture (standing, sleeping, fallen)
+* Eating & medication activity
+* Fall or inactivity incidents
 
-## 💡 Core Features
+## Core Features
 
-✅ Real-time data ingestion via ESP32 → AWS DynamoDB  
-✅ AI-powered reasoning summaries via **NVIDIA NIM (Llama-3.1-Nemotron-8B)**  
-✅ Email alerts for fall detection and abnormal vitals  
-✅ Responsive caregiver dashboard (React + TailwindCSS)  
-✅ Serverless AWS backend (Lambda + API Gateway + DynamoDB)  
-✅ Extensible modular architecture  
+✅ ESP32 → AWS DynamoDB ingestion
 
----
+✅ AI reasoning summaries via NVIDIA NIM (Llama-3.1-Nemotron-8B)
 
-## 🧱 Architecture Diagram
+✅ Email alerts for fall detection & abnormal vitals
 
-[ Sensors ]
-↓
-[ ESP32 + NodeRED ]
-↓
-[ AWS DynamoDB ]
-↓
-[ AWS Lambda / API Gateway ]
-↓
-[ FastAPI Backend (NOMI Core) ]
-↓
-[ NVIDIA NIM (Llama-3.1-Nemotron) ]
-↓
-[ Reasoned Summary + Insights ]
-↓
-[ React Frontend Dashboard ]
-↓
-[ Email/SMS Alerts via AWS SNS ]
+✅ React + Tailwind dashboard with live charts (Recharts)
 
+✅ Optional OpenCV local fall detection (privacy-preserving)
 
----
+## Architecture Diagram
 
-## ⚙️ Technology Stack
+```
+[ Sensors ] --> [ ESP32 / NodeRED ] --> [ AWS DynamoDB ]
+                                       \
+                                        -> [ AWS Lambda + API Gateway ] -> [ FastAPI Backend ]
+                                                                        \
+                                                                         -> [ NVIDIA NIM (Nemotron) ] -> Reasoned insights
+                                                                                                        \
+                                                                                                         -> [ React Frontend ] + Alerts (email/SNS)
+```
 
-### 🧠 AI & Reasoning
-- **NVIDIA NIM (Llama-3.1-Nemotron-8B)** — reasoning model  
-- **NVIDIA NGC API** — secure inference endpoint  
-- **OpenAI-compatible JSON interface**
+## Technology Stack
 
-### ☁️ Cloud Infrastructure
-- **AWS DynamoDB** — sensor data storage  
-- **AWS Lambda + API Gateway** — public data endpoint  
-- **AWS SNS / Gmail SMTP** — caregiver notifications  
+### AI & Reasoning
 
-### 💻 Backend
-- **FastAPI (Python 3.9+)** — main logic layer  
-- **boto3** — AWS SDK  
-- **dotenv / Pydantic** — configuration and validation  
+* NVIDIA NIM (Llama-3.1-Nemotron-8B)
+* OpenAI-compatible JSON API
 
-### 🌐 Frontend
-- **React + TailwindCSS** — caregiver dashboard  
-- **Recharts** — live data visualization  
-- **Fetch API** — connects to FastAPI routes  
+### Cloud
 
-### 🔧 Hardware
-- **ESP32 Dev Board** — sensor hub  
-- **Pulse & Pressure Sensors** — heart rate, eating/meds  
-- **OpenCV + MediaPipe** — local fall detection (optional)  
+* AWS DynamoDB (sensor store)
+* AWS Lambda + API Gateway (public read endpoint)
+* AWS SNS / Gmail SMTP (alerts)
 
----
+### Backend
 
-## 📁 Project Structure
+* FastAPI (Python 3.9+), boto3, pydantic, python-dotenv, requests
+
+### Frontend
+
+* React, TailwindCSS, Recharts
+
+### Hardware
+
+* ESP32 + pulse sensor, force sensors (pill bottle / eating), temp/humidity
+* OpenCV (optional on-device posture/fall)
+
+## Project Structure
+
+```
 nomi/
 ├── backend/
-│ ├── app.py # FastAPI backend
-│ ├── requirements.txt
-│ ├── .env
-│ └── email_alerts.py
+│   ├── app.py                 # FastAPI backend
+│   ├── requirements.txt
+│   ├── .env                   # local config (not committed)
+│   └── README.md
 │
 ├── frontend/
-│ ├── src/
-│ │ ├── components/
-│ │ │ ├── Dashboard.js
-│ │ │ └── Charts.js
-│ │ └── App.js
-│ ├── package.json
-│ └── README.md
+│   ├── src/
+│   │   ├── App.js
+│   │   ├── components/
+│   │   │   ├── Dashboard.js
+│   │   │   └── Charts.js
+│   │   └── config.js
+│   ├── package.json
+│   └── README.md
 │
 └── docs/
-├── dashboard.png
-├── architecture.png
-└── demo_video.mp4
+    ├── dashboard.png
+    ├── architecture.png
+    └── demo_video.mp4
+```
 
+## Backend Setup (FastAPI)
 
+### 1) Create & Activate Virtual Environment
 
----
-
-## 🚀 Backend Setup (FastAPI)
-
-### 1️⃣ Create and Activate Virtual Environment
 ```bash
 cd backend
 python3 -m venv venv
 source venv/bin/activate
+```
 
+> **Note:** If pip is missing on macOS, reinstall ensurepip:
+>
+> ```bash
+> python3 -m ensurepip --upgrade
+> python3 -m pip install --upgrade pip
+> ```
 
+### 2) Install Dependencies
 
-2️⃣ Install Dependencies
+```bash
 pip install -r requirements.txt
+```
 
-3️⃣ Add Environment Variables
+**requirements.txt example:**
 
-Create a .env file:
+```
+fastapi==0.115.0
+uvicorn==0.30.6
+pydantic==2.9.2
+python-dotenv==1.0.1
+requests==2.32.3
+boto3==1.35.25
+```
 
+### 3) Environment Variables
+
+Create `backend/.env`:
+
+```env
+# NVIDIA NIM (hosted) — OpenAI-compatible endpoint
 NGC_API_KEY=your_nvidia_ngc_api_key
 NIM_ENDPOINT=https://integrate.api.nvidia.com/v1/chat/completions
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+
+# DynamoDB read endpoint (via API Gateway + Lambda)
+DYNAMO_API_URL=https://<your-id>.execute-api.us-east-1.amazonaws.com/default/nomiData
+
+# Optional: Email alerts (use an App Password for Gmail)
 EMAIL_SENDER=your_email@gmail.com
 EMAIL_RECIPIENT=caregiver_email@gmail.com
-EMAIL_PASSWORD=your_app_password
-DYNAMO_API_URL=https://<your-api>.execute-api.us-east-1.amazonaws.com/default/nomiData
+EMAIL_PASSWORD=your_gmail_app_password
 
+# Optional: AWS credentials if calling SNS directly from backend
+AWS_ACCESS_KEY_ID=xxxxx
+AWS_SECRET_ACCESS_KEY=xxxxx
+AWS_DEFAULT_REGION=us-east-1
+```
 
-4️⃣ Run the Server
+### 4) Run FastAPI
+
+```bash
 uvicorn app:app --reload
+```
 
+* API root: `http://127.0.0.1:8000/`
+* Data passthrough: `GET /data`
+* Reasoning endpoint: `POST /analyze`
 
-💻 Frontend Setup (React)
-1️⃣ Install and Start
+## Frontend Setup (React)
+
+### 1) Install & Start
+
+```bash
 cd frontend
 npm install
 npm start
+```
 
-2️⃣ Set Backend URL
+### 2) Configure Backend URL
 
-In src/config.js:
+Create or edit `frontend/src/config.js`:
 
+```javascript
 export const API_BASE = "http://127.0.0.1:8000";
+```
 
+### 3) Example Fetch (inside React component)
 
-🤖 AWS + NIM Integration
+```javascript
+import { API_BASE } from "./config";
 
-Each reasoning request is handled by the FastAPI route /analyze:
+async function loadData() {
+  const res = await fetch(`${API_BASE}/data`);
+  const data = await res.json();
+  console.log(data);
+}
 
-import requests, os
+async function getSummary() {
+  const res = await fetch(`${API_BASE}/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      posture: "standing",
+      pill_status: "closed",
+      sensor_data: [] // omit to auto-pull from Dynamo
+    })
+  });
+  const out = await res.json();
+  console.log(out);
+}
+```
+
+## NVIDIA NIM Integration
+
+The backend calls NIM using an OpenAI-like API.
+
+```python
+import os, requests
 
 headers = {
-  "Authorization": f"Bearer {os.getenv('NGC_API_KEY')}",
-  "Content-Type": "application/json"
+    "Authorization": f"Bearer {os.getenv('NGC_API_KEY')}",
+    "Content-Type": "application/json",
 }
 
 payload = {
-  "model": "meta/llama-3.1-nemotron-8b",
-  "messages": [{"role": "user", "content": "Summarize recent health readings"}],
-  "max_tokens": 200
+    "model": "nvidia/llama-3.1-nemotron-nano-8b-v1",
+    "messages": [
+        {"role": "user", "content": "Summarize recent health readings."}
+    ],
+    "max_tokens": 200,
+    "temperature": 0.5
 }
 
-r = requests.post(os.getenv("NIM_ENDPOINT"), headers=headers, json=payload)
+resp = requests.post(os.getenv("NIM_ENDPOINT"), headers=headers, json=payload)
+print(resp.json())
+```
 
+In `app.py`, `/analyze` builds a structured prompt and returns `{ summary, recommendation, reasoning }`.
 
-Responses are streamed to the React dashboard and used for caregiver updates.
+## SageMaker Deployment Notes
 
-🧬 SageMaker Deployment Notes
+**Sandbox constraint:** In the Vocareum AWS account, SageMaker endpoint creation is blocked by Service Control Policies (SCP). That's expected in the hackathon environment.
 
-Due to Service Control Policies (SCPs) in the AWS Vocareum sandbox,
-SageMaker endpoint creation (CreateEndpoint, CreateModel, etc.) is explicitly blocked.
+**Production path (for judges):**
 
-In production, NOMI would deploy via SageMaker using the NVIDIA NIM model ARN:
+1. Subscribe to NVIDIA NIM model in AWS Marketplace
+2. Use Model Package ARN to create a SageMaker Model and Endpoint
 
-import boto3
+```python
+import boto3, json, time
 sm = boto3.client("sagemaker")
+runtime = boto3.client("sagemaker-runtime")
 
-model_arn = "arn:aws:sagemaker:us-east-1:865070037744:model-package/llama3-1-nemotron-nano-8b-v1-n-710c29bc58f0303aac54c77c70fc229a"
+nim_model_package_arn = "arn:aws:sagemaker:us-east-1:865070037744:model-package/llama3-1-nemotron-nano-8b-v1-n-710c29bc58f0303aac54c77c70fc229a"
 
 sm.create_model(
     ModelName="nomi-nim-model",
-    PrimaryContainer={"ModelPackageName": model_arn},
-    ExecutionRoleArn="arn:aws:iam::<your-account-id>:role/SageMakerExecutionRole"
+    PrimaryContainer={"ModelPackageName": nim_model_package_arn},
+    ExecutionRoleArn="<YOUR_SAGEMAKER_EXEC_ROLE_ARN>",
+    EnableNetworkIsolation=True,
 )
 
+sm.create_endpoint_config(
+    EndpointConfigName="nomi-nim-config",
+    ProductionVariants=[{
+        "VariantName": "AllTraffic",
+        "ModelName": "nomi-nim-model",
+        "InitialInstanceCount": 1,
+        "InstanceType": "ml.g5.12xlarge"
+    }]
+)
 
-🟢 For this project, reasoning runs via NVIDIA’s hosted NIM endpoint, achieving the same functionality.
+sm.create_endpoint(
+    EndpointName="nomi-nim-endpoint",
+    EndpointConfigName="nomi-nim-config"
+)
+```
 
-🧪 Local Testing
-Step	Description
-1️⃣	Run uvicorn app:app --reload in backend
-2️⃣	Run npm start in frontend
-3️⃣	Open http://localhost:3000
-4️⃣	View live sensor readings from DynamoDB
-5️⃣	Trigger reasoning summary and fall alerts
-📧 Example Alert Email
+3. Use `runtime.invoke_endpoint` for inference.
 
-Subject: ⚠️ NOMI Alert: Fall Detected for Edna
-Body:
+For this hackathon, we use NVIDIA's hosted NIM (above), which fulfills the "Effective use of NVIDIA NIM services" requirement.
 
+## Local Testing
+
+| Step | What to do                                                              |
+| ---- | ----------------------------------------------------------------------- |
+| 1    | Run backend: `uvicorn app:app --reload`                                 |
+| 2    | Run frontend: `npm start`                                               |
+| 3    | Visit `http://localhost:3000`                                           |
+| 4    | Data panel shows DynamoDB (via `/data`)                                 |
+| 5    | Insights card shows LLM summary (via `/analyze`)                        |
+| 6    | Trigger an email alert by including a "fallen" event or abnormal vitals |
+
+## Example Alert Email
+
+**Subject:**
+
+```
+⚠️ NOMI Alert: Fall Detected for Edna
+```
+
+**Body:**
+
+```
 Dear Caregiver,
 
-NOMI detected a fall event for Edna at 2:14 PM.
-Vital stats before fall:
-- Heart Rate: 110 bpm
-- Oxygen: 92%
-- Temperature: 24.8°C / 47%
+NOMI detected a FALL event for Edna at 2:14 PM.
+Recent vitals:
+• Heart rate: 110 bpm
+• Oxygen: 92%
+• Room: 24.8°C / 47%
 
 Immediate assistance is advised.
-– NOMI Safety System
+— NOMI Safety System
+```
 
-🔮 Future Enhancements
+## Future Enhancements
 
-Real ESP32 streaming (MQTT)
+* MQTT ingest from ESP32 for real-time streaming
+* Alexa voice integration
+* Full SageMaker-managed deployment
+* Wearable/EHR integration
+* RAG-based caregiver Q&A and timelines
 
-Alexa voice integration
+## Contributors
 
-Full SageMaker deployment
+| Name         | Role                                       |
+| ------------ | ------------------------------------------ |
+| Crystal Yang | Frontend/UI, AWS Integration, DevOps       |
+| Ria Saheta   | System Architecture, AI Reasoning, Backend |
 
-Wearable & EHR integration
-
-Advanced anomaly detection via RAG models
-
-👩‍💻 Contributors
-Name	Role
-Ria Saheta	System Architect, AI Reasoning, Backend Integration
-Crystal [Last Name]	Frontend Developer, UI/UX, AWS Infrastructure
-🏁 Submission Checklist
+## Submission Checklist
 
 ✅ Clear README (this file)
-✅ Public GitHub repository
-✅ 3-minute demo video (linked in docs)
-✅ Working backend + frontend
+
+✅ Public GitHub repo
+
+✅ 3-minute demo video (`docs/demo_video.mp4`)
+
 ✅ NVIDIA NIM + AWS integration
 
-GitHub Repository: https://github.com/yourusername/nomi
+✅ Local run instructions + production notes
 
-Demo Video: Watch Demo
+***
+
+**Repo:** `https://github.com/Crustaly/nomi`
+
+**Demo Video:** add link in `docs/demo_video.mp4`
