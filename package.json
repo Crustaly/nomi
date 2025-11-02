@@ -1,6 +1,7 @@
 {
   "name": "nomi-dashboard",
   "version": "0.1.0",
+  "homepage": "https://crustaly.github.io/nomi",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.4",
@@ -16,7 +17,9 @@
     "start": "set PORT=3001 && react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
