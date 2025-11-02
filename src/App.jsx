@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import mockData from "./mockdata.json";
-import VitalsDashboard from "./components/VitalsDashboard";
 
 
 
@@ -44,9 +43,9 @@ import VitalsDashboard from "./components/VitalsDashboard";
 
 function App() {
   // Data fetching state from remote
-  const [sensorData, setSensorData] = useState([]);
-  const [aiSummary, setAiSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [, setSensorData] = useState([]);
+  const [, setAiSummary] = useState(null);
+  const [, setLoading] = useState(true);
   const [heartRateData, setHeartRateData] = useState([]);
   const [oxygenData, setOxygenData] = useState([]);
   const [temperatureData, setTemperatureData] = useState([]);
@@ -83,7 +82,7 @@ function App() {
     }));
   };
 
-  const tourContent = [
+  const tourContent = useMemo(() => [
     {
       title: "Health Metrics",
       description: "Real-time graphs pull live data directly from AWS DynamoDB, giving you an up-to-the-minute view of your loved one's well-being. Every key metric is continuously refreshed, so you always have the most current picture of their health at a glance.",
@@ -99,7 +98,7 @@ function App() {
       description: "Daily wellness summaries turn complex information into simple, human-friendly updates — helping you understand how your loved one is doing and offering gentle cues on how to support them with care and confidence.",
       ref: wellnessSummaryRef
     }
-  ];
+  ], [healthMetricsRef, healthInsightsRef, wellnessSummaryRef]);
 
   const startTour = () => {
     setTourStep(0);
@@ -146,7 +145,7 @@ function App() {
         }, 100);
       }
     }
-  }, [tourStep]);
+  }, [tourStep, tourContent]);
 
   // Fetch data from FastAPI backend
   useEffect(() => {
