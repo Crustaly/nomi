@@ -1,9 +1,9 @@
 import boto3
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from botocore.exceptions import ClientError
 
-TABLE_NAME = "NomiData"
+TABLE_NAME = "NomiSensorData"
 REGION = "us-east-1"
 TTL_HOURS = 3
 
@@ -22,8 +22,8 @@ def create_table_if_not_exists():
         dynamodb.create_table(
             TableName=TABLE_NAME,
             KeySchema=[
-                {"AttributeName": "sensor_type", "KeyType": "HASH"},
-                {"AttributeName": "timestamp", "KeyType": "RANGE"},
+                {"AttributeName": "sensor_type", "KeyType": "HASH"},  # Partition key
+                {"AttributeName": "timestamp", "KeyType": "RANGE"},   # Sort key
             ],
             AttributeDefinitions=[
                 {"AttributeName": "sensor_type", "AttributeType": "S"},
@@ -51,52 +51,37 @@ def enable_ttl():
 # --- 3. POPULATE SAMPLE DATA ---
 def populate_sample_data():
     table = resource.Table(TABLE_NAME)
-    now = datetime.utcnow()
 
-    continuous = [
-        ("heart_rate", "bpm", 60, 95),
-        ("oxygen", "%", 95, 100),
-        ("temp_humidity", "C/%", 25, 30),
+    sample_items = [
+        {"sensor_type": "heart_rate", "value": 72, "unit": "bpm", "timestamp": "2025-10-19T09:00:00Z"},
+        {"sensor_type": "oxygen", "value": 97, "unit": "%", "timestamp": "2025-10-19T09:00:00Z"},
+        {"sensor_type": "temp_humidity", "value": "25°C / 48%", "unit": "C/%", "timestamp": "2025-10-19T09:00:00Z"},
+        {"sensor_type": "posture", "value": "sitting", "unit": None, "timestamp": "2025-10-19T09:01:00Z"},
+        {"sensor_type": "pill_bottle", "value": "opened", "unit": None, "timestamp": "2025-10-19T09:02:30Z"},
+        {"sensor_type": "heart_rate", "value": 78, "unit": "bpm", "timestamp": "2025-10-19T09:10:00Z"},
+        {"sensor_type": "oxygen", "value": 96, "unit": "%", "timestamp": "2025-10-19T09:10:00Z"},
+        {"sensor_type": "posture", "value": "standing", "unit": None, "timestamp": "2025-10-19T09:12:00Z"},
+        {"sensor_type": "eating", "value": "meal_started", "unit": None, "timestamp": "2025-10-19T09:13:00Z"},
+        {"sensor_type": "heart_rate", "value": 95, "unit": "bpm", "timestamp": "2025-10-19T09:15:00Z"},
+        {"sensor_type": "oxygen", "value": 95, "unit": "%", "timestamp": "2025-10-19T09:15:00Z"},
+        {"sensor_type": "posture", "value": "fallen", "unit": None, "timestamp": "2025-10-19T09:20:00Z"},
+        {"sensor_type": "heart_rate", "value": 115, "unit": "bpm", "timestamp": "2025-10-19T09:20:30Z"},
+        {"sensor_type": "fall_detector", "value": "triggered", "unit": None, "timestamp": "2025-10-19T09:20:30Z"},
+        {"sensor_type": "oxygen", "value": 90, "unit": "%", "timestamp": "2025-10-19T09:20:30Z"},
+        {"sensor_type": "heart_rate", "value": 75, "unit": "bpm", "timestamp": "2025-10-19T09:45:00Z"},
+        {"sensor_type": "oxygen", "value": 98, "unit": "%", "timestamp": "2025-10-19T09:45:00Z"},
+        {"sensor_type": "sleep", "value": "nap_started", "unit": None, "timestamp": "2025-10-19T10:00:00Z"},
     ]
-    events = [
-        ("eating", [1, 2, 3]),
-        ("meds", [1]),
-        ("fall_detector", ["None", "Fall Detected"]),
-        ("sleep", [5, 6, 7, 8]),
-    ]
 
-    print("🧠 Uploading 3 days of sample integer data...")
-    for d in range(3):
-        day = now - timedelta(days=d)
-        day_str = day.strftime("%Y-%m-%d")
-
-        # Daily event sensors
-        for name, vals in events:
-            v = vals[d % len(vals)]
-            # Convert text events to 0/1 (for falls etc.)
-            if isinstance(v, str):
-                v = 1 if "Fall" in v else 0
-            item = {
-                "sensor_type": name,
-                "timestamp": day_str,
-                "count": int(v),
-            }
-            table.put_item(Item=item)
-
-        # Continuous sensors
-        for minutes in range(0, 60, 10):
-            ts = (day + timedelta(hours=10, minutes=minutes)).isoformat()
-            for name, unit, lo, hi in continuous:
-                val = int(lo + (hi - lo) * 0.3)  # integer only
-                item = {
-                    "sensor_type": name,
-                    "timestamp": ts,
-                    "value": val,
-                    "metadata": {"unit": unit},
-                    "expire_at": int(time.time()) + TTL_HOURS * 3600,
-                }
-                table.put_item(Item=item)
-    print("✅ Sample integer data uploaded!")
+    print("🧠 Uploading sample data to DynamoDB...")
+    for item in sample_items:
+        item["expire_at"] = int(time.time()) + TTL_HOURS * 3600  # Auto-expire
+        # Convert None to string "null" (DynamoDB doesn’t accept None directly)
+        for k, v in list(item.items()):
+            if v is None:
+                item[k] = "null"
+        table.put_item(Item=item)
+    print("✅ Sample data uploaded successfully!")
 
 # --- 4. VERIFY ---
 def show_preview():

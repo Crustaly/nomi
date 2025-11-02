@@ -5,7 +5,7 @@ import VitalsDashboard from "./components/VitalsDashboard";
 
 
 
-// Mock data for the charts
+// hardcoded data for front end designing purposes
 // const heartRateData = [
 //   { time: '6:00 AM', value: 72 },
 //   { time: '8:00 AM', value: 75 },
@@ -50,6 +50,17 @@ function App() {
   const [heartRateData, setHeartRateData] = useState([]);
   const [oxygenData, setOxygenData] = useState([]);
   const [temperatureData, setTemperatureData] = useState([]);
+  
+  // Calculate averages
+  const avgHeartRate = heartRateData.length > 0 
+    ? Math.round(heartRateData.reduce((sum, d) => sum + d.value, 0) / heartRateData.length)
+    : null;
+  const avgOxygen = oxygenData.length > 0
+    ? Math.round((oxygenData.reduce((sum, d) => sum + d.value, 0) / oxygenData.length) * 10) / 10
+    : null;
+  const avgTemperature = temperatureData.length > 0
+    ? Math.round((temperatureData.reduce((sum, d) => sum + d.value, 0) / temperatureData.length) * 10) / 10
+    : null;
   
   // UI state from our changes
   const [showModal, setShowModal] = useState(false);
@@ -164,10 +175,12 @@ function App() {
           .filter(d => d.sensor_type === "temp_humidity")
           .map(d => {
             const match = /([\d.]+)°C/.exec(d.value);
-            const val = match ? parseFloat(match[1]) : null;
+            const valCelsius = match ? parseFloat(match[1]) : null;
+            // Convert Celsius to Fahrenheit: (C * 9/5) + 32
+            const valFahrenheit = valCelsius ? (valCelsius * 9/5) + 32 : null;
             return {
               time: new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              value: val
+              value: valFahrenheit
             };
           })
           .filter(d => typeof d.value === "number" && !isNaN(d.value));
@@ -326,7 +339,13 @@ function App() {
                     <YAxis 
                       stroke="#6b7280"
                       fontSize={10}
-                      domain={[65, 85]}
+                      domain={heartRateData.length > 0 
+                        ? [
+                            Math.floor(Math.min(...heartRateData.map(d => d.value)) * 0.95),
+                            Math.ceil(Math.max(...heartRateData.map(d => d.value)) * 1.05)
+                          ]
+                        : [65, 85]
+                      }
                     />
                     <Tooltip 
                       contentStyle={{
@@ -341,7 +360,7 @@ function App() {
                 </ResponsiveContainer>
               </div>
               <div className="text-center">
-                <span className="text-3xl font-bold text-red-600">76</span>
+                <span className="text-3xl font-bold text-red-600">{avgHeartRate !== null ? avgHeartRate : '--'}</span>
                 <span className="text-gray-600 ml-2">BPM</span>
               </div>
             </div>
@@ -381,7 +400,13 @@ function App() {
                     <YAxis 
                       stroke="#6b7280"
                       fontSize={10}
-                      domain={[95, 100]}
+                      domain={oxygenData.length > 0 
+                        ? [
+                            Math.floor(Math.min(...oxygenData.map(d => d.value)) * 0.995),
+                            Math.ceil(Math.max(...oxygenData.map(d => d.value)) * 1.005)
+                          ]
+                        : [95, 100]
+                      }
                     />
                     <Tooltip 
                       contentStyle={{
@@ -396,7 +421,7 @@ function App() {
                 </ResponsiveContainer>
               </div>
               <div className="text-center">
-                <span className="text-3xl font-bold text-blue-600">98</span>
+                <span className="text-3xl font-bold text-blue-600">{avgOxygen !== null ? avgOxygen : '--'}</span>
                 <span className="text-gray-600 ml-2">%</span>
               </div>
             </div>
@@ -436,7 +461,13 @@ function App() {
                     <YAxis 
                       stroke="#6b7280"
                       fontSize={10}
-                      domain={[98.0, 98.8]}
+                      domain={temperatureData.length > 0 
+                        ? [
+                            Math.floor(Math.min(...temperatureData.map(d => d.value)) * 0.95),
+                            Math.ceil(Math.max(...temperatureData.map(d => d.value)) * 1.05)
+                          ]
+                        : [75, 80]
+                      }
                     />
                     <Tooltip 
                       contentStyle={{
@@ -445,14 +476,14 @@ function App() {
                         borderRadius: '8px',
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                       }}
-                      formatter={(value) => [`${value}°F`, 'Temperature']}
+                      formatter={(value) => [`${value.toFixed(1)}°F`, 'Temperature']}
                     />
                     <Bar dataKey="value" fill="#374151" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               <div className="text-center">
-                <span className="text-3xl font-bold text-gray-800">98.4</span>
+                <span className="text-3xl font-bold text-gray-800">{avgTemperature ? avgTemperature.toFixed(1) : '--'}</span>
                 <span className="text-gray-600 ml-2">°F</span>
               </div>
             </div>
