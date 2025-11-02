@@ -149,22 +149,33 @@ function App() {
         setOxygenData(oxygen);
         setTemperatureData(temp);
   
-        // 3️⃣ Send to FastAPI → NVIDIA NIM for reasoning
-        const analyzeRes = await fetch("http://127.0.0.1:8000/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            posture: "sitting",
-            pill_status: "closed",
-            sensor_data: data,
-          }),
-        });
+        // 3️⃣ Send to FastAPI → NVIDIA NIM for reasoning (only in development)
+        // Skip in production since backend won't be available on GitHub Pages
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          try {
+            const analyzeRes = await fetch("http://127.0.0.1:8000/analyze", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                posture: "sitting",
+                pill_status: "closed",
+                sensor_data: data,
+              }),
+            });
   
-        const result = await analyzeRes.json();
-        setAiSummary(result);
+            const result = await analyzeRes.json();
+            setAiSummary(result);
+          } catch (fetchErr) {
+            // Silently fail in development if backend isn't running
+            console.warn("Backend not available:", fetchErr.message);
+          }
+        }
   
       } catch (err) {
-        console.error("Error syncing data:", err);
+        // Only log errors that aren't network-related
+        if (err.name !== 'TypeError' || !err.message.includes('fetch')) {
+          console.error("Error syncing data:", err);
+        }
       } finally {
         setLoading(false);
       }
@@ -191,8 +202,12 @@ function App() {
             muted
             playsInline
             onEnded={handleVideoEnd}
+            onError={() => {
+              // If video fails to load, skip loading screen
+              setShowLoadingScreen(false);
+            }}
           >
-            <source src="/loadingscreen.mp4" type="video/mp4" />
+            <source src={`${process.env.PUBLIC_URL || ''}/loadingscreen.mp4`} type="video/mp4" />
             Your browser does not support the video tag.
           </video>
         </div>
@@ -206,14 +221,14 @@ function App() {
         <div className="w-full py-6 flex items-center justify-between">
           <div className="flex items-center space-x-3 ml-6">
             <img 
-              src="/logo.png" 
+              src={`${process.env.PUBLIC_URL || ''}/logo.png`} 
               alt="Logo" 
               className="h-10 w-auto"
             />
             <h1 className="text-3xl font-bold text-gray-800">nomi</h1>
           </div>
           <img 
-            src="/edna.png" 
+            src={`${process.env.PUBLIC_URL || ''}/edna.png`} 
             alt="Profile" 
             className="h-12 w-12 rounded-full object-cover border-2 border-gray-200 mr-8"
           />
