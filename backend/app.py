@@ -6,7 +6,13 @@ import requests
 from dotenv import load_dotenv
 import boto3
 from botocore.exceptions import ClientError
-import os
+import re
+# RAG imports
+from typing import List, Optional
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
+
 
 
 
@@ -21,6 +27,15 @@ NIM_ENDPOINT = os.getenv("NIM_ENDPOINT")
 # 🔹 Your DynamoDB API Gateway endpoint
 DYNAMO_API_URL = "https://hyntpqmh6h.execute-api.us-east-1.amazonaws.com/default/nomi-dynamodb"
 
+# --- RAG globals ---
+NIM_EMBED_ENDPOINT = os.getenv("NIM_EMBED_ENDPOINT")  # nv-embedqa-e5-v5 NIM
+_vectorstore: Optional[FAISS] = None
+_embeddings: Optional[NVIDIAEmbeddings] = None
+
+_text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=800, chunk_overlap=120, separators=["\n\n", "\n", " ", ""]
+)
+
 
 
 # Initialize SNS
@@ -34,54 +49,116 @@ sns_client = boto3.client(
 # -------------------------------
 # 🔹 Prompt Builder
 # -------------------------------
-def build_nomiprompt(sensor_data, posture=None, pill_status=None):
+def build_nomiprompt(sensor_data, posture=None, pill_status=None, retrieved: List[str] = None):
     readable = json.dumps(sensor_data, indent=2)
-    sensor_types = [d.get("sensor_type", "") for d in sensor_data]
+    sensor_types = [d.get("sensor_type", "") for d in sensor_data] if isinstance(sensor_data, list) else []
+    context_block = "\n".join(f"- {c}" for c in (retrieved or [])) or "None"
 
     if any(s in sensor_types for s in ["eating", "sleep", "fall_detector", "meds"]):
         # 💤 Daily summary mode
         prompt = f"""
-You are NOMI, an AI elder-care assistant summarizing daily activity logs.
+        You are NOMI, an AI elder-care assistant summarizing daily activity logs.
 
-These are the recorded events:
-{readable}
+        CONTEXT (retrieved top-k from historical):
+        {context_block}
 
-Generate:
-1. A short wellbeing summary for the day.
-2. A direct, friendly recommendation for the caregiver (addressed as “you”).
-3. A one-sentence reasoning behind your conclusion.
+        These are the recorded events (current request):
+        {readable}
 
-Return output in strict JSON format:
-{{
-  "summary": "",
-  "recommendation": "",
-  "reasoning": ""
-}}
-"""
+        Generate:
+        1. A short wellbeing summary for the day.
+        2. A direct, friendly recommendation for the caregiver (addressed as “you”).
+        3. A one-sentence reasoning behind your conclusion.
+
+        Return output in strict JSON format:
+        {{
+        "summary": "",
+        "recommendation": "",
+        "reasoning": ""
+        }}
+        """
     else:
         # 💓 Real-time vitals mode
         prompt = f"""
-You are NOMI, an AI elder-care assistant.
+        You are NOMI, an AI elder-care assistant.
 
-Given these sensor readings:
-{readable}
+        CONTEXT (retrieved top-k from historical):
+        {context_block}
 
-Current posture: {posture}
-Pill-bottle status: {pill_status}
+        Given these sensor readings:
+        {readable}
 
-Generate:
-1. A one-sentence wellbeing summary describing the elderly person’s current condition utilizing the data records available to you. 
-2. A one-sentence recommendation addressed directly to the caregiver about the elderly person (e.g. “You should…” or “You can…”). 
-3. A one-sentence reasoning behind your conclusion. Be concise and heartwarming.
+        Current posture: {posture}
+        Pill-bottle status: {pill_status}
 
-Return output in strict JSON format:
-{{
-  "summary": "",
-  "recommendation": "",
-  "reasoning": ""
-}}
-"""
+        Generate:
+        1. A one-sentence wellbeing summary describing the elderly person’s current condition utilizing the data records available to you. 
+        2. A one-sentence recommendation addressed directly to the caregiver about the elderly person (e.g. “You should…” or “You can…”). 
+        3. A one-sentence reasoning behind your conclusion. Be concise and heartwarming.
+
+        Return output in strict JSON format:
+        {{
+        "summary": "",
+        "recommendation": "",
+        "reasoning": ""
+        }}
+        """
     return prompt
+
+
+def _get_embeddings() -> NVIDIAEmbeddings:
+    global _embeddings
+    if _embeddings is None:
+        if not NGC_API_KEY:
+            raise RuntimeError("Missing NGC_API_KEY")
+        _embeddings = NVIDIAEmbeddings(
+            model="nvidia/nv-embedqa-e5-v5",
+            api_key=NGC_API_KEY,
+            base_url="https://integrate.api.nvidia.com/v1",  # ✅ not /embeddings
+        )
+    return _embeddings
+
+
+
+
+def _normalize_row(row: dict) -> str:
+    """Turn a Dynamo record into a compact line of text for embedding."""
+    piece = []
+    for key in ("timestamp", "patient_id", "sensor_type", "value", "vitals", "notes", "status"):
+        if key in row:
+            piece.append(f"{key}: {row[key]}")
+    return " | ".join(piece) if piece else json.dumps(row)
+
+
+def _fetch_historical() -> List[str]:
+    """Pull historical data (same source you already use) and stringify."""
+    url = os.getenv("DYNAMO_API_URL", DYNAMO_API_URL)
+    resp = requests.get(url, timeout=20)
+    resp.raise_for_status()
+    payload = resp.json()
+    rows = payload if isinstance(payload, list) else [payload]
+    return [_normalize_row(r) for r in rows]
+
+
+def build_or_refresh_vectorstore(force: bool = False) -> FAISS:
+    """Create an in-memory FAISS index from historical data."""
+    global _vectorstore
+    if _vectorstore is not None and not force:
+        return _vectorstore
+
+    docs_raw = _fetch_historical()
+    big_blob = "\n".join(docs_raw) if docs_raw else "No historical data."
+    chunks = _text_splitter.split_text(big_blob) or ["No historical data."]
+    embeddings = _get_embeddings()
+    _vectorstore = FAISS.from_texts(chunks, embedding=embeddings)
+    return _vectorstore
+
+
+def retrieve_context(query: str, k: int = 2) -> List[str]:
+    """Top-k semantic search over the FAISS index."""
+    vs = build_or_refresh_vectorstore()
+    docs = vs.similarity_search(query, k=k)
+    return [d.page_content for d in docs]
 
 
 def send_sns_alert(message, subject="NOMI Alert"):
@@ -95,6 +172,16 @@ def send_sns_alert(message, subject="NOMI Alert"):
         print("✅ SNS message sent:", response["MessageId"])
     except ClientError as e:
         print("❌ SNS Error:", e)
+
+
+def safe_parse_json(llm_output: str):
+    try:
+        match = re.search(r"\{.*\}", llm_output, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+    except Exception:
+        pass
+    return {"summary": llm_output.strip(), "recommendation": "", "reasoning": ""}
 
 
 # -------------------------------
@@ -147,10 +234,15 @@ def generate_response(input_data: MessageInput):
 
 
 # ---- 🔹 Smart Sensor Analysis ---- #
+from typing import Optional  # make sure this import is at the top
+
 class SensorBundle(BaseModel):
     posture: str = "normal"
     pill_status: str = "closed"
     sensor_data: list = []
+    query: Optional[str] = None   # ✅ works in Python 3.9
+
+
 
 import requests
 
@@ -207,13 +299,35 @@ def analyze(bundle: SensorBundle):
             dynamo_response = requests.get(DYNAMO_API_URL)
             dynamo_response.raise_for_status()
             bundle.sensor_data = dynamo_response.json()
+        
+        # ---- 2A) Build a retrieval query and get top-2 chunks ----
+        retrieval_query = bundle.query
+        if not retrieval_query:
+            # fallbacks: use sensor types, notes, or generic
+            if isinstance(bundle.sensor_data, list) and bundle.sensor_data:
+                # try to build a simple text query from the latest few records
+                tail = bundle.sensor_data[-5:]
+                retrieval_query = " ".join(
+                    str(x.get("sensor_type", "")) + " " + str(x.get("notes", ""))
+                    for x in tail
+                ).strip() or "recent patient trends"
+            else:
+                retrieval_query = "recent patient trends"
+
+        retrieved_chunks = retrieve_context(retrieval_query, k=2)
+
 
         # ---- 2️⃣ Build prompt for NIM ----
         prompt = build_nomiprompt(
-            sensor_data=bundle.sensor_data,
-            posture=bundle.posture,
-            pill_status=bundle.pill_status
+        sensor_data=bundle.sensor_data,
+        posture=bundle.posture,
+        pill_status=bundle.pill_status,
+        retrieved=retrieved_chunks,       # <-- NEW
         )
+        if retrieved_chunks:
+            context_block = "\n".join(retrieved_chunks)
+            prompt += f"\n\nRelevant historical context:\n{context_block}"
+
 
         # ---- 3️⃣ Prepare and send to NVIDIA NIM ----
         headers = {
@@ -226,12 +340,28 @@ def analyze(bundle: SensorBundle):
             "max_tokens": 150
         }
 
-        response = requests.post(NIM_ENDPOINT, headers=headers, json=payload)
+        NIM_REASON_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+
+        headers = {
+            "Authorization": f"Bearer {NGC_API_KEY}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "model": "nvidia/llama-3.1-nemotron-nano-8b-v1",
+            "messages": [
+                {"role": "system", "content": "You are NOMI, an elder-care analysis assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.3,
+            "max_tokens": 400
+        }
+
+        response = requests.post(NIM_REASON_URL, headers=headers, json=payload)
         response.raise_for_status()
         result = response.json()
-
-        # ---- 4️⃣ Extract model text ----
         summary_text = result["choices"][0]["message"]["content"]
+
 
         # ---- 5️⃣ Optional: Try to parse JSON block from the LLM output ----
         parsed_output = {}
