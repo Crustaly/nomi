@@ -6,8 +6,6 @@ NOMI is an AI-powered companion system for elder care. It combines real-time IoT
 
 **Agentic AI Unleashed: AWS & NVIDIA Hackathon**
 
-Category: Agentic AI Systems with Real-World Impact
-
 ## 🧩 Table of Contents
 
 * [Overview](#overview)
